@@ -1,78 +1,97 @@
-import requests
-from huggingface_hub import HfFolder
-from sentence_transformers import SentenceTransformer
+import pandas as pd
+import numpy as np
 import faiss
+from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
+import gradio as gr
 
-# Step 1: Initialization of the embedding model and the FAISS index
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Small, quick model
-documents = [
-    "The Golden Ball is an award given each year to the best football player.",
-    "The 2024 Golden Ball was awarded to Rodri.",
-    "Rodri is a Spanish football player playing as a midfielder.",
-    "Rodri also plays for Manchester City in the Premier League.",
-]
+# Charger les données
+df = pd.read_csv("C:\\Users\\titou\\Desktop\\I-LLM\\acceslibre-with-web-url(1).csv", low_memory=False)
 
-# Create embeddings for each document
-doc_embeddings = embedding_model.encode(documents)
+# Fonction description
+def creer_description(row):
+    descriptions = [
+        str(row["name"]) if pd.notnull(row["name"]) else "",
+        f"{str(row['numero'])} {str(row['voie'])}" if pd.notnull(row['numero']) else str(row['voie']),
+        str(row["commune"]) if pd.notnull(row["commune"]) else "",
+        f"Activité : {str(row['activite'])}" if pd.notnull(row["activite"]) else "",
+    ]
 
-# Build a FAISS index
-dimension = doc_embeddings.shape[1]
-index = faiss.IndexFlatL2(dimension)
-index.add(doc_embeddings)
+    moteur = []
+    if row.get("entree_pmr"):
+        moteur.append("entrée accessible PMR")
+    if row.get("sanitaires_adaptes"):
+        moteur.append("sanitaires adaptés PMR")
+    if row.get("stationnement_pmr"):
+        moteur.append("stationnement PMR disponible")
+    if moteur:
+        descriptions.append(f"Accessibilité moteur : {', '.join(moteur)}")
 
-#Step 2: Function to search for relevant documents
-def find_relevant_docs(query, k=2):
-    """
-    Searches for relevant documents for a query.
-    """
-    query_embedding = embedding_model.encode([query])
-    distances, indices = index.search(query_embedding, k)
-    return [documents[idx] for idx in indices[0]]
+    visuel = []
+    if row.get("cheminement_ext_bande_guidage"):
+        visuel.append("bande de guidage extérieure")
+    if row.get("entree_vitree_vitrophanie"):
+        visuel.append("vitrophanie à l'entrée")
+    if row.get("entree_balise_sonore"):
+        visuel.append("balise sonore disponible")
+    if visuel:
+        descriptions.append(f"Accessibilité visuelle : {', '.join(visuel)}")
 
-# Step 3: Use Mistral to generate a response
-def mistral_via_api(prompt):
-    """
-    Uses the Hugging Face API to generate text with Mistral.
-    """
-    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-    HF_TOKEN = HfFolder.get_token()
-    if HF_TOKEN is None:
-        return "Error: No tokens found. Log in with `huggingface-cli login`."
+    auditif = []
+    if row.get("accueil_equipements_malentendants_presence"):
+        auditif.append("équipements pour malentendants disponibles")
+    if auditif:
+        descriptions.append(f"Accessibilité auditive : {', '.join(auditif)}")
 
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 5000,
-            "temperature": 0.7,
-            "top_k": 50,
-        }
-    }
-    response = requests.post(API_URL, headers=headers, json=payload)
+    cognitif = []
+    if row.get("accueil_personnels"):
+        cognitif.append("personnel formé à l'accueil spécifique")
+    if cognitif:
+        descriptions.append(f"Accessibilité cognitive : {', '.join(cognitif)}")
 
-    if response.status_code == 200:
-        return response.json()[0]["generated_text"]
-    else:
-        return f"Error : {response.status_code} - {response.json()}"
+    if pd.notnull(row['site_internet']):
+        descriptions.append(f"Site web : {row['site_internet']}")
 
-# Étape 4 : RAG - Combiner retrieval et génération
-def rag_pipeline(query, k=2):
-    """
-    Implements the RAG method by combining retrieval and generation.
-    """
-    # Retrieve relevant documents
-    relevant_docs = find_relevant_docs(query, k)
-    context = "\n".join(relevant_docs)
-    
-    # Build the prompt
-    prompt = f"Context : {context}\n\nQuestion : {query}\n\nAnswer :"
-    
-    # Generate a response with Mistral
-    return mistral_via_api(prompt)
+    descriptions = [desc for desc in descriptions if desc]
 
-# Example of use
-if __name__ == "__main__":
-    query = "Who is the 2024 Golden Ball and and who is he?"
-    answer = rag_pipeline(query)
-    print("Response generated:")
-    print(answer)
+    return "; ".join(descriptions)
+
+df["description"] = df.apply(creer_description, axis=1)
+
+# Embeddings & FAISS
+embeddings = np.load("embeddings.npy")
+index = faiss.read_index("faiss_hnsw.index")
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Gemini configuration
+genai.configure(api_key="AIzaSyCRYsdwXIdwn21a-R8zw01z7xAopksNOVU")
+model_gemini = genai.GenerativeModel('gemini-2.0-flash')
+
+# Fonction retrieval
+def recuperer_infos(query, k=3):
+    query_embedding = model.encode([query])
+    faiss.normalize_L2(query_embedding)
+    D, I = index.search(query_embedding, k=k)
+    return df.iloc[I[0]]
+
+# Fonction Gemini response
+def generer_reponse(query):
+    resultats = recuperer_infos(query)
+    prompt = f"L'utilisateur demande : '{query}'. Voici les établissements correspondants :\n"
+    for _, row in resultats.iterrows():
+        prompt += f"- {row['description']}\n"
+    prompt += "\nPrésente ces établissements clairement en mettant en avant les adaptations spécifiques pour le handicap mentionné."
+    response = model_gemini.generate_content(prompt)
+    return response.text
+
+# Gradio UI
+def chatbot_interface(user_input, history):
+    reponse = generer_reponse(user_input)
+    return reponse
+
+chat_interface = gr.ChatInterface(fn=chatbot_interface,
+                                  title="🤖 Gemini Accessibilité RAG",
+                                  description="Pose tes questions sur l'accessibilité des lieux selon différents handicaps.")
+
+chat_interface.launch()
