@@ -29,9 +29,9 @@ Interface Gradio : Une interface web interactive permet aux utilisateurs de pose
 
 Le modèle actuel présente certaines limites, notamment dans la précision des résultats :
 
-Les vecteurs proches ne correspondent pas toujours exactement aux réponses attendues.
+- Les vecteurs proches ne correspondent pas toujours exactement aux réponses attendues.
 
-Parfois, des résultats non pertinents peuvent être affichés, notamment quand l'activité ou la localisation spécifiée n'est pas parfaitement prise en compte par la recherche sémantique.
+- Parfois, des résultats non pertinents peuvent être affichés, notamment quand l'activité ou la localisation spécifiée n'est pas parfaitement prise en compte par la recherche sémantique.
 
 ### 🚀 Lancement du projet
 
