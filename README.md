@@ -1,16 +1,16 @@
-#📌 Projet Gemini Accessibilité RAG
+# 📌 Projet Gemini Accessibilité RAG
 
 Ce projet permet de trouver facilement des établissements (restaurants, hôtels, coiffeurs, etc.) accessibles aux personnes en situation de handicap (PMR, visuel, auditif, cognitif), en combinant une approche RAG (Retrieval-Augmented Generation) avec Gemini.
 
-##🔧 Comment ça marche ?
+## 🔧 Comment ça marche ?
 
-###1️⃣ Génération des Embeddings (Google Colab)
+### 1️⃣ Génération des Embeddings (Google Colab)
 
 Le fichier Google Colab génère les embeddings pour chaque établissement à partir d'une description détaillée.
 
 Ces embeddings (vecteurs) sont ensuite sauvegardés (embeddings.npy) et un index FAISS (faiss_hnsw.index) est créé pour une recherche rapide.
 
-###2️⃣ Script final avec Gemini et Gradio
+### 2️⃣ Script final avec Gemini et Gradio
 
 Chargement : Les embeddings et l'index pré-calculés sont chargés localement.
 
@@ -20,7 +20,7 @@ Génération de réponses : Gemini (gemini-2.0-flash) crée des réponses nature
 
 Interface Gradio : Une interface web interactive permet aux utilisateurs de poser facilement leurs questions.
 
-###🚀 Lancement du projet
+### 🚀 Lancement du projet
 
 Exécute d'abord le notebook Colab pour générer les fichiers embeddings et FAISS.
 
