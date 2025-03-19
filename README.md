@@ -25,6 +25,14 @@ Génération de réponses : Gemini (gemini-2.0-flash) crée des réponses nature
 
 Interface Gradio : Une interface web interactive permet aux utilisateurs de poser facilement leurs questions.
 
+### ⚠️ Limites actuelles du modèle
+
+Le modèle actuel présente certaines limites, notamment dans la précision des résultats :
+
+Les vecteurs proches ne correspondent pas toujours exactement aux réponses attendues.
+
+Parfois, des résultats non pertinents peuvent être affichés, notamment quand l'activité ou la localisation spécifiée n'est pas parfaitement prise en compte par la recherche sémantique.
+
 ### 🚀 Lancement du projet
 
 Exécute d'abord le notebook Colab pour générer les fichiers embeddings et FAISS.
